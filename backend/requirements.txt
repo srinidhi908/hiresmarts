@@ -84,7 +84,6 @@ requests-file==3.0.1
 rich==14.3.3
 safetensors==0.7.0
 scikit-learn==1.7.2
-scipy==1.15.3
 sentencepiece==0.2.1
 sgmllib3k==1.0.0
 six==1.17.0
