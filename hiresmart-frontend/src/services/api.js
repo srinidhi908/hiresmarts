@@ -7,7 +7,7 @@ const BASE_URL = "https://hiresmarts-backend.onrender.com";
 // =======================================
 // 🔧 Helper: fetch with timeout + better errors
 // =======================================
-const fetchWithTimeout = async (url, options = {}, timeout = 30000) => {
+const fetchWithTimeout = async (url, options = {}, timeout = 40000) => {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
 
@@ -17,19 +17,29 @@ const fetchWithTimeout = async (url, options = {}, timeout = 30000) => {
       signal: controller.signal,
     });
 
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(text || "Request failed");
-    }
-
     return response;
+
   } catch (err) {
     if (err.name === "AbortError") {
-      throw new Error("Request timeout ⏳ (Render may be waking up)");
+      throw new Error("Server is waking up ⏳ Please try again...");
     }
     throw err;
   } finally {
     clearTimeout(id);
+  }
+};
+
+
+// =======================================
+// 🔧 Helper: Safe JSON parse
+// =======================================
+const parseJSON = async (response) => {
+  try {
+    return await response.json();
+  } catch (err) {
+    const text = await response.text();
+    console.error("Invalid JSON:", text);
+    throw new Error("Invalid response from server");
   }
 };
 
@@ -47,7 +57,15 @@ export const analyzeResume = async (file, jd) => {
     body: formData,
   });
 
-  return await response.json();
+  const data = await parseJSON(response);
+
+  if (!response.ok) {
+    console.error("Backend Error:", data);
+    throw new Error(data.detail || data.message || "Failed to analyze resume");
+  }
+
+  console.log("✅ Resume Analysis Response:", data);
+  return data;
 };
 
 
@@ -68,7 +86,14 @@ export const analyzeMultipleResumes = async (files, jd) => {
     body: formData,
   });
 
-  return await response.json();
+  const data = await parseJSON(response);
+
+  if (!response.ok) {
+    console.error("Backend Error:", data);
+    throw new Error(data.detail || "Failed to analyze multiple resumes");
+  }
+
+  return data;
 };
 
 
@@ -96,6 +121,10 @@ export const downloadReport = async (results, companyName = "HireSmart AI") => {
       }),
     });
 
+    if (!response.ok) {
+      throw new Error("Failed to generate report");
+    }
+
     const blob = await response.blob();
 
     const url = window.URL.createObjectURL(blob);
@@ -114,7 +143,7 @@ export const downloadReport = async (results, companyName = "HireSmart AI") => {
 
 
 // =======================================
-// 💬 CHATBOT API (FIXED)
+// 💬 CHATBOT API
 // =======================================
 export const chatWithBot = async (message, results) => {
   const response = await fetchWithTimeout(`${BASE_URL}/chat`, {
@@ -123,10 +152,16 @@ export const chatWithBot = async (message, results) => {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      message: message,
-      results: results,
+      message,
+      results,
     }),
   });
 
-  return await response.json();
+  const data = await parseJSON(response);
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Chatbot failed");
+  }
+
+  return data;
 };
