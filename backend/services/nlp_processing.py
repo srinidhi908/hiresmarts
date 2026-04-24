@@ -1,8 +1,4 @@
-import spacy
-
-# load model once (fast)
-nlp = spacy.load("en_core_web_sm")
-
+import re
 
 # simple skill list (you can expand later)
 SKILLS_DB = [
@@ -14,9 +10,16 @@ SKILLS_DB = [
 
 
 def preprocess_text(text: str):
-    doc = nlp(text.lower())
-    tokens = [token.text for token in doc if not token.is_stop and token.is_alpha]
-    return " ".join(tokens)
+    # convert to lowercase
+    text = text.lower()
+
+    # remove special characters
+    text = re.sub(r'[^a-zA-Z0-9\s]', ' ', text)
+
+    # remove extra spaces
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    return text
 
 
 def extract_skills(text: str):
